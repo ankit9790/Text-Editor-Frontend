@@ -1,0 +1,171 @@
+/* Root background */
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", sans-serif;
+  background: #f0f8ff;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #00796b; /* teal */
+  color: #fff;
+  padding: 1rem 2rem;
+}
+
+.navbar-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+  flex: 1;
+}
+
+.join-container {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.join-container input {
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: none;
+}
+
+.join-container button {
+  background: #ff5722;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.join-container button:hover {
+  background: #e64a19;
+}
+
+/* Dashboard layout */
+.dashboard {
+  display: flex;
+  min-height: 90vh;
+}
+
+/* Documents list */
+.doc-list {
+  width: 250px;
+  background: #e0f7fa;
+  padding: 1rem;
+  border-right: 2px solid #00acc1;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-list h3 {
+  text-align: center;
+  color: #00796b;
+}
+
+.doc-list button {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #00796b;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+}
+
+.doc-list button:hover {
+  background: #004d40;
+}
+
+.doc-item {
+  background: #b2dfdb;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.doc-item:hover {
+  background: #80cbc4;
+}
+
+.doc-item button {
+  background: #e53935;
+  border: none;
+  color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.doc-item button:hover {
+  background: #b71c1c;
+}
+
+/* Editor container */
+.editor-container {
+  flex: 1;
+  padding: 1.5rem;
+  margin: 1rem;
+  background: #7fdbff;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.editor-placeholder {
+  color: #555;
+  text-align: center;
+  margin-top: 50px;
+  font-size: 1.2rem;
+}
+
+/* Quill editor */
+.ql-toolbar.ql-snow {
+  border-radius: 8px 8px 0 0;
+}
+
+.ql-container.ql-snow {
+  min-height: 400px;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard {
+    flex-direction: column;
+  }
+
+  .doc-list {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .doc-item {
+    flex: 1;
+    margin-right: 0.5rem;
+  }
+
+  .editor-container {
+    margin: 1rem 0;
+  }
+}
+
+
+.current-user {
+  text-align: center;
+  font-weight: 600;
+  color: #00796b;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #b2dfdb;
+  border-radius: 8px;
+}
