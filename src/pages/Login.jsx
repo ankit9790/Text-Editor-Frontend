@@ -8,10 +8,7 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("/auth/login", {
-        username: email,
-        password,
-      });
+      const res = await axios.post("/auth/login", { email, password });
       localStorage.setItem("token", res.data.token);
       window.location.href = "/";
     } catch (err) {

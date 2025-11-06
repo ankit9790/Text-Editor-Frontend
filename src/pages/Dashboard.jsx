@@ -8,57 +8,50 @@ const socket = io("http://localhost:3000");
 export default function Dashboard() {
   const [documents, setDocuments] = useState([]);
   const [currentDoc, setCurrentDoc] = useState(null);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newDocTitle, setNewDocTitle] = useState("");
   const [joinId, setJoinId] = useState("");
-  const [user, setUser] = useState(null); // <-- NEW: current user
 
-  // Fetch current user
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get("/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setUser(res.data);
-      } catch (err) {
-        console.error("Failed to fetch user:", err);
-      }
-    };
-    fetchUser();
+    fetchDocs();
   }, []);
 
-  // Fetch user documents
   const fetchDocs = async () => {
     try {
-      const res = await axios.get("/documents");
+      const res = await axios.get("/documents", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
       setDocuments(res.data);
     } catch (err) {
       console.error("Failed to fetch documents:", err);
     }
   };
 
-  useEffect(() => {
-    fetchDocs();
-  }, []);
-
-  // Create new document
   const createDoc = async () => {
+    if (!newDocTitle.trim()) return;
     try {
-      const res = await axios.post("/documents", {
-        title: "Untitled",
-        content: "",
-      });
+      const res = await axios.post(
+        "/documents",
+        { title: newDocTitle, content: "" },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+
       setDocuments([...documents, res.data]);
-      setCurrentDoc(res.data);
+      setShowNewModal(false);
+      setNewDocTitle("");
+      setTimeout(() => setCurrentDoc(res.data), 50);
     } catch (err) {
       console.error("Failed to create document:", err);
     }
   };
 
-  // Delete document
   const deleteDoc = async (id) => {
     try {
-      await axios.delete(`/documents/${id}`);
+      await axios.delete(`/documents/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
       setDocuments(documents.filter((doc) => doc.id !== id));
       if (currentDoc?.id === id) setCurrentDoc(null);
     } catch (err) {
@@ -66,40 +59,63 @@ export default function Dashboard() {
     }
   };
 
-  // Join document by ID
   const joinDocument = async () => {
-    const doc = documents.find((d) => d.id === parseInt(joinId));
-    if (doc) setCurrentDoc(doc);
-    else alert("Document not found!");
+    if (!joinId.trim()) return;
+    const exists = documents.find((doc) => doc.id === Number(joinId));
+    if (exists) {
+      setCurrentDoc(exists);
+      setJoinId("");
+    } else {
+      alert("Document ID not found!");
+    }
   };
 
   return (
-    <div>
-      {/* Navbar */}
-      <nav className="navbar">
-        <div className="navbar-title">Collaborative Text Editor</div>
-        <div className="join-container">
-          <input
-            type="text"
-            placeholder="Enter Document ID"
-            value={joinId}
-            onChange={(e) => setJoinId(e.target.value)}
-          />
-          <button onClick={joinDocument}>Join</button>
+    <div className="dashboard-container">
+      {/* New File Modal */}
+      {showNewModal && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <h3>Create New Document</h3>
+            <input
+              type="text"
+              placeholder="Enter document title"
+              value={newDocTitle}
+              onChange={(e) => setNewDocTitle(e.target.value)}
+            />
+            <div className="modal-actions">
+              <button onClick={createDoc} className="btn-primary">
+                Create
+              </button>
+              <button
+                onClick={() => setShowNewModal(false)}
+                className="btn-danger"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
-      </nav>
+      )}
 
-      {/* Dashboard */}
       <div className="dashboard">
         {/* Documents list */}
         <div className="doc-list">
-          {user && (
-            <div className="current-user">
-              Logged in as: <strong>{user.username}</strong>
-            </div>
-          )}
           <h3>Your Documents</h3>
-          <button onClick={createDoc}>+ New File</button>
+          <button className="btn-new" onClick={() => setShowNewModal(true)}>
+            + New File
+          </button>
+
+          <div className="join-box">
+            <input
+              type="text"
+              placeholder="Enter Document ID"
+              value={joinId}
+              onChange={(e) => setJoinId(e.target.value)}
+            />
+            <button onClick={joinDocument}>Join</button>
+          </div>
+
           {documents.map((doc) => (
             <div key={doc.id} className="doc-item">
               <span onClick={() => setCurrentDoc(doc)}>{doc.title}</span>
