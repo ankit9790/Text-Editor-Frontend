@@ -45,8 +45,8 @@ export default function Editor({ doc }) {
     const socket = io("http://localhost:3000");
     socketRef.current = socket;
 
-    // Join document using docId (UUID)
-    socket.emit("join-document", doc.docId);
+    // ✅ Join room using internal numeric ID (NOT docId)
+    socket.emit("join-document", doc.id);
 
     socket.on("load-document", (content) => {
       if (content == null) content = "";
@@ -74,13 +74,14 @@ export default function Editor({ doc }) {
 
       if (emitTimer.current) clearTimeout(emitTimer.current);
       emitTimer.current = setTimeout(() => {
-        socket.emit("text-change", { docId: doc.docId, content: html });
+        // ✅ Emit using internal ID so all users in room receive updates
+        socket.emit("text-change", { roomId: doc.id, content: html });
       }, 180);
 
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         try {
-          // Save using numeric internal ID
+          // Save using internal ID
           await axios.put(`/documents/${doc.id}`, { content: html });
         } catch {}
       }, 1500);
