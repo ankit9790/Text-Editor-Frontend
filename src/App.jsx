@@ -8,7 +8,7 @@ import Register from "./pages/Register";
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(true); 
   const navigate = useNavigate();
 
   useEffect(() => {
