@@ -1,3 +1,4 @@
+// src/components/Editor.jsx
 import React, { useEffect, useRef } from "react";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
@@ -42,12 +43,26 @@ export default function Editor({ doc }) {
       socketRef.current = null;
     }
 
-    const socket = io("http://localhost:3000");
+    // Determine socket host from environment variable or fallback
+    const API_HOST = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+    // Connect to Socket.IO on Render. Use transports websocket (prefer) and allow reconnection
+    const socket = io(API_HOST, {
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      secure: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      timeout: 20000,
+      // extraHeaders sometimes required on certain proxies, but not in browsers
+    });
+
     socketRef.current = socket;
 
-    // ✅ Join room using internal numeric ID (NOT docId)
+    // Join using internal numeric id (this is critical)
     socket.emit("join-document", doc.id);
 
+    // Load initial content sent from server
     socket.on("load-document", (content) => {
       if (content == null) content = "";
       if (quill.root.innerHTML !== content) {
@@ -58,6 +73,7 @@ export default function Editor({ doc }) {
       }
     });
 
+    // Receive live changes from others
     socket.on("receive-changes", (content) => {
       if (content == null) content = "";
       if (quill.root.innerHTML !== content) {
@@ -72,18 +88,21 @@ export default function Editor({ doc }) {
       if (suppressNext.current) return;
       const html = quill.root.innerHTML;
 
+      // Debounced broadcast to prevent flood
       if (emitTimer.current) clearTimeout(emitTimer.current);
       emitTimer.current = setTimeout(() => {
-        // ✅ Emit using internal ID so all users in room receive updates
+        // IMPORTANT: emit using roomId (internal id) so server broadcasts to correct room
         socket.emit("text-change", { roomId: doc.id, content: html });
       }, 180);
 
+      // Debounced HTTP save for persistence
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         try {
-          // Save using internal ID
           await axios.put(`/documents/${doc.id}`, { content: html });
-        } catch {}
+        } catch (err) {
+          // ignore save errors — optionally show UI indicator
+        }
       }, 1500);
     };
 

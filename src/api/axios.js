@@ -1,8 +1,12 @@
+// src/api/axios.js
 import axios from "axios";
 
+// Use Vite env variable if present; fallback to localhost for local dev
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://texteditorbackend-uxt9.onrender.com";
+
 const instance = axios.create({
-  // baseURL: "http://localhost:3000/api",
-  baseURL: "https://texteditorbackend-uxt9.onrender.com/api",
+  baseURL: `${API_BASE}/api`,
   withCredentials: false,
 });
 
