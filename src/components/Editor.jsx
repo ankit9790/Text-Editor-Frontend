@@ -13,7 +13,7 @@ export default function Editor({ doc }) {
   const saveTimer = useRef(null);
   const suppressNext = useRef(false);
 
-  // Initialize Quill once
+  // Initialize Quill only once
   useEffect(() => {
     if (!editorRef.current) return;
     if (!quillRef.current) {
@@ -33,12 +33,12 @@ export default function Editor({ doc }) {
     }
   }, []);
 
-  // Main effect: runs whenever `doc` changes
+  // Run whenever `doc` changes (open a different document)
   useEffect(() => {
     if (!doc || !quillRef.current) return;
     const quill = quillRef.current;
 
-    // clean up existing socket if present
+    // Cleanup old socket (if any)
     if (socketRef.current) {
       try {
         socketRef.current.disconnect();
@@ -46,24 +46,28 @@ export default function Editor({ doc }) {
       socketRef.current = null;
     }
 
-    // Pick API host from env (auto-switch between dev/prod)
-    const API_HOST = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    // Determine API & Socket hosts from env
+    const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    // Prefer a specific Socket URL env variable, otherwise use API host
+    const SOCKET_BASE = import.meta.env.VITE_SOCKET_URL || API_BASE;
 
-    // Connect Socket.IO. Use the API host so deployed frontend talks to Render backend.
-    const socket = io(API_HOST, {
+    // Connect to Socket.IO server (auto-switches between wss/http based on env)
+    const socket = io(SOCKET_BASE, {
       path: "/socket.io",
+      // try websocket first, fallback to polling for better compatibility
       transports: ["websocket", "polling"],
-      secure: API_HOST.startsWith("https"),
+      secure: SOCKET_BASE.startsWith("https") || SOCKET_BASE.startsWith("wss"),
       reconnection: true,
       reconnectionAttempts: Infinity,
       timeout: 20000,
     });
+
     socketRef.current = socket;
 
-    // Join using internal numeric id (this is important)
+    // Join the room by internal numeric id (crucial!)
     socket.emit("join-document", doc.id);
 
-    // Initial load — server sends the current content
+    // Server will emit the current content to this socket only
     socket.on("load-document", (content) => {
       if (content == null) content = "";
       if (quill.root.innerHTML !== content) {
@@ -74,7 +78,7 @@ export default function Editor({ doc }) {
       }
     });
 
-    // Receive live changes from other clients
+    // Receive live changes from others
     socket.on("receive-changes", (content) => {
       if (content == null) content = "";
       if (quill.root.innerHTML !== content) {
@@ -85,32 +89,32 @@ export default function Editor({ doc }) {
       }
     });
 
-    // When the Quill editor content changes locally
+    // Local change handler
     const onChange = () => {
       if (suppressNext.current) return;
       const html = quill.root.innerHTML;
 
-      // Debounced broadcast to reduce network chatter
+      // Debounced broadcast to room
       if (emitTimer.current) clearTimeout(emitTimer.current);
       emitTimer.current = setTimeout(() => {
-        // Emit using roomId (internal id) so the server broadcasts to the correct room
+        // Emit roomId (internal id) so server broadcasts to the correct room
         socket.emit("text-change", { roomId: doc.id, content: html });
       }, 180);
 
-      // Debounced save to backend using HTTP PUT
+      // Debounced save via HTTP
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         try {
           await axios.put(`/documents/${doc.id}`, { content: html });
         } catch (err) {
-          // ignore save errors; optionally show UI
+          // ignore save errors for now
         }
       }, 1500);
     };
 
     quill.on("text-change", onChange);
 
-    // Cleanup on unmount or doc change
+    // Cleanup on unmount/doc change
     return () => {
       quill.off("text-change", onChange);
       if (emitTimer.current) clearTimeout(emitTimer.current);

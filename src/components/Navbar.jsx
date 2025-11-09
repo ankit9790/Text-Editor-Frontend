@@ -7,7 +7,7 @@ export default function Navbar({ onLogout, user }) {
   const handleJoin = () => {
     const id = (joinId || "").trim();
     if (!id) return;
-    // dispatch event so Dashboard handles join (no direct routing here)
+    // dispatch event for Dashboard to handle fetching the document and opening the editor
     window.dispatchEvent(new CustomEvent("joinDocById", { detail: id }));
     setJoinId("");
   };
@@ -15,7 +15,6 @@ export default function Navbar({ onLogout, user }) {
   return (
     <nav className="navbar">
       <div className="navbar-left">
-        {/* Show logged-in user email at left */}
         {user?.email && <div style={{ fontWeight: 600 }}>{user.email}</div>}
       </div>
 
