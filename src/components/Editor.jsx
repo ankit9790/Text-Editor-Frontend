@@ -13,6 +13,7 @@ export default function Editor({ doc }) {
   const saveTimer = useRef(null);
   const suppressNext = useRef(false);
 
+  // Initialize Quill once
   useEffect(() => {
     if (!editorRef.current) return;
     if (!quillRef.current) {
@@ -32,10 +33,12 @@ export default function Editor({ doc }) {
     }
   }, []);
 
+  // Main effect: runs whenever `doc` changes
   useEffect(() => {
     if (!doc || !quillRef.current) return;
     const quill = quillRef.current;
 
+    // clean up existing socket if present
     if (socketRef.current) {
       try {
         socketRef.current.disconnect();
@@ -43,26 +46,24 @@ export default function Editor({ doc }) {
       socketRef.current = null;
     }
 
-    // Determine socket host from environment variable or fallback
+    // Pick API host from env (auto-switch between dev/prod)
     const API_HOST = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-    // Connect to Socket.IO on Render. Use transports websocket (prefer) and allow reconnection
+    // Connect Socket.IO. Use the API host so deployed frontend talks to Render backend.
     const socket = io(API_HOST, {
       path: "/socket.io",
       transports: ["websocket", "polling"],
-      secure: true,
+      secure: API_HOST.startsWith("https"),
       reconnection: true,
       reconnectionAttempts: Infinity,
       timeout: 20000,
-      // extraHeaders sometimes required on certain proxies, but not in browsers
     });
-
     socketRef.current = socket;
 
-    // Join using internal numeric id (this is critical)
+    // Join using internal numeric id (this is important)
     socket.emit("join-document", doc.id);
 
-    // Load initial content sent from server
+    // Initial load — server sends the current content
     socket.on("load-document", (content) => {
       if (content == null) content = "";
       if (quill.root.innerHTML !== content) {
@@ -73,7 +74,7 @@ export default function Editor({ doc }) {
       }
     });
 
-    // Receive live changes from others
+    // Receive live changes from other clients
     socket.on("receive-changes", (content) => {
       if (content == null) content = "";
       if (quill.root.innerHTML !== content) {
@@ -84,30 +85,32 @@ export default function Editor({ doc }) {
       }
     });
 
+    // When the Quill editor content changes locally
     const onChange = () => {
       if (suppressNext.current) return;
       const html = quill.root.innerHTML;
 
-      // Debounced broadcast to prevent flood
+      // Debounced broadcast to reduce network chatter
       if (emitTimer.current) clearTimeout(emitTimer.current);
       emitTimer.current = setTimeout(() => {
-        // IMPORTANT: emit using roomId (internal id) so server broadcasts to correct room
+        // Emit using roomId (internal id) so the server broadcasts to the correct room
         socket.emit("text-change", { roomId: doc.id, content: html });
       }, 180);
 
-      // Debounced HTTP save for persistence
+      // Debounced save to backend using HTTP PUT
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         try {
           await axios.put(`/documents/${doc.id}`, { content: html });
         } catch (err) {
-          // ignore save errors — optionally show UI indicator
+          // ignore save errors; optionally show UI
         }
       }, 1500);
     };
 
     quill.on("text-change", onChange);
 
+    // Cleanup on unmount or doc change
     return () => {
       quill.off("text-change", onChange);
       if (emitTimer.current) clearTimeout(emitTimer.current);

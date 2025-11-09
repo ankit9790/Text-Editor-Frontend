@@ -1,3 +1,4 @@
+// src/components/Navbar.jsx
 import React, { useState } from "react";
 
 export default function Navbar({ onLogout, user }) {
@@ -6,25 +7,22 @@ export default function Navbar({ onLogout, user }) {
   const handleJoin = () => {
     const id = (joinId || "").trim();
     if (!id) return;
+    // dispatch event so Dashboard handles join (no direct routing here)
     window.dispatchEvent(new CustomEvent("joinDocById", { detail: id }));
     setJoinId("");
   };
 
   return (
     <nav className="navbar">
-      {/* LEFT SIDE: Show current user email */}
       <div className="navbar-left">
-        {user?.email && (
-          <span style={{ fontWeight: 600 }}>LogedIn : {user.email}</span>
-        )}
+        {/* Show logged-in user email at left */}
+        {user?.email && <div style={{ fontWeight: 600 }}>{user.email}</div>}
       </div>
 
-      {/* CENTER: Navbar title */}
       <div className="navbar-center">
-        <div className="navbar-title">Collaborative Editor</div>
+        <div className="navbar-title">Text Editor</div>
       </div>
 
-      {/* RIGHT SIDE: Join input + Logout */}
       <div className="navbar-right">
         <input
           className="join-input"
