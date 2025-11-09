@@ -12,7 +12,6 @@ export default function Editor({ doc }) {
   const saveTimer = useRef(null);
   const suppressNext = useRef(false);
 
-  // init Quill once
   useEffect(() => {
     if (!editorRef.current) return;
     if (!quillRef.current) {
@@ -32,12 +31,10 @@ export default function Editor({ doc }) {
     }
   }, []);
 
-  // handle doc changes / socket lifecycle
   useEffect(() => {
     if (!doc || !quillRef.current) return;
     const quill = quillRef.current;
 
-    // disconnect old socket if any
     if (socketRef.current) {
       try {
         socketRef.current.disconnect();
@@ -48,20 +45,15 @@ export default function Editor({ doc }) {
     const socket = io("http://localhost:3000");
     socketRef.current = socket;
 
-    // join room
-    socket.emit("join-document", doc.id);
+    // Join document using docId (UUID)
+    socket.emit("join-document", doc.docId);
 
-    // request document load - server may emit load-document
     socket.on("load-document", (content) => {
       if (content == null) content = "";
-      // only apply when different
       if (quill.root.innerHTML !== content) {
-        // prevent triggering text-change handler as 'user'
         suppressNext.current = true;
         quill.clipboard.dangerouslyPasteHTML(content);
-        // restore selection to end
-        const length = quill.getLength();
-        quill.setSelection(length, 0);
+        quill.setSelection(quill.getLength(), 0);
         suppressNext.current = false;
       }
     });
@@ -71,37 +63,31 @@ export default function Editor({ doc }) {
       if (quill.root.innerHTML !== content) {
         suppressNext.current = true;
         quill.clipboard.dangerouslyPasteHTML(content);
-        const length = quill.getLength();
-        quill.setSelection(length, 0);
+        quill.setSelection(quill.getLength(), 0);
         suppressNext.current = false;
       }
     });
 
-    // handle local edits
     const onChange = () => {
       if (suppressNext.current) return;
       const html = quill.root.innerHTML;
 
-      // debounce emit to avoid flooding and reduce flicker
       if (emitTimer.current) clearTimeout(emitTimer.current);
       emitTimer.current = setTimeout(() => {
-        socket.emit("text-change", { docId: doc.id, content: html });
+        socket.emit("text-change", { docId: doc.docId, content: html });
       }, 180);
 
-      // save document (debounced)
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         try {
+          // Save using numeric internal ID
           await axios.put(`/documents/${doc.id}`, { content: html });
-        } catch (err) {
-          // ignore save error
-        }
+        } catch {}
       }, 1500);
     };
 
     quill.on("text-change", onChange);
 
-    // cleanup on unmount or doc change
     return () => {
       quill.off("text-change", onChange);
       if (emitTimer.current) clearTimeout(emitTimer.current);

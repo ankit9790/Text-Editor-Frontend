@@ -8,8 +8,10 @@ export default function Dashboard({ user }) {
   const [currentDoc, setCurrentDoc] = useState(null);
   const [showInline, setShowInline] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newDocId, setNewDocId] = useState(""); // owner assigns docId
   const docsRef = useRef([]);
 
+  // Fetch documents and setup join event
   useEffect(() => {
     const fetchDocs = async () => {
       try {
@@ -23,26 +25,26 @@ export default function Dashboard({ user }) {
     };
     fetchDocs();
 
-    // robust join handler
     const onJoin = (e) => {
       const rawId = e?.detail;
       if (!rawId) return;
       const id = String(rawId).trim();
       if (!id) return;
 
-      // 1) try find locally
-      const found = docsRef.current.find((d) => String(d.id) === id);
+      // 1) Try find locally
+      const found = docsRef.current.find(
+        (d) => String(d.id) === id || String(d.docId) === id
+      );
       if (found) {
         setCurrentDoc(found);
         return;
       }
 
-      // 2) try fetching from primary endpoint /documents/:id
+      // 2) Try fetching by internal id
       (async () => {
         try {
-          let res = await axios.get(`/documents/${id}`);
-          let doc = res.data;
-          if (doc && doc.document) doc = doc.document;
+          const res = await axios.get(`/documents/${id}`);
+          const doc = res.data;
           if (doc && doc.id) {
             setCurrentDoc(doc);
             setDocuments((prev) =>
@@ -52,20 +54,13 @@ export default function Dashboard({ user }) {
             return;
           }
         } catch (err) {
-          const status = err?.response?.status;
-          if (status === 401 || status === 403) {
-            alert(
-              "Access denied. You are not authorized to open this document."
-            );
-            return;
-          }
+          // fallback to docId
         }
 
-        // 3) fallback: try /documents/join/:id
+        // 3) Fetch by docId
         try {
           const res2 = await axios.get(`/documents/join/${id}`);
-          let doc2 = res2.data;
-          if (doc2 && doc2.document) doc2 = doc2.document;
+          const doc2 = res2.data;
           if (doc2 && doc2.id) {
             setCurrentDoc(doc2);
             setDocuments((prev) =>
@@ -73,29 +68,16 @@ export default function Dashboard({ user }) {
             );
             docsRef.current = [...docsRef.current, doc2].filter(Boolean);
             return;
-          } else if (res2.data && typeof res2.data === "object") {
-            const candidate = res2.data.document || res2.data;
-            if (candidate && candidate.id) {
-              setCurrentDoc(candidate);
-              setDocuments((prev) =>
-                prev.some((x) => x.id === candidate.id)
-                  ? prev
-                  : [...prev, candidate]
-              );
-              docsRef.current = [...docsRef.current, candidate].filter(Boolean);
-              return;
-            }
-          }
-          alert("Document not found.");
-        } catch (err2) {
-          const status2 = err2?.response?.status;
-          if (status2 === 401 || status2 === 403) {
-            alert(
-              "Access denied. You are not authorized to open this document."
-            );
           } else {
-            alert("Document not found or server error.");
+            alert(
+              (res2?.data?.error || "Document not found.") + " Check the ID!"
+            );
           }
+        } catch (err2) {
+          const msg =
+            err2?.response?.data?.error ||
+            "Document not found or server error.";
+          alert(msg);
         }
       })();
     };
@@ -104,18 +86,28 @@ export default function Dashboard({ user }) {
     return () => window.removeEventListener("joinDocById", onJoin);
   }, []);
 
-  const createDoc = async (title) => {
-    if (!title?.trim()) return;
+  // Create document (owner assigns docId manually)
+  const createDoc = async (title, docId) => {
+    if (!title?.trim() || !docId?.trim()) {
+      alert("Title and Document ID are required");
+      return;
+    }
+
     try {
-      const res = await axios.post("/documents", { title, content: "" });
+      const res = await axios.post("/documents", {
+        title,
+        content: "",
+        docId,
+      });
       const newDoc = res.data;
       setDocuments((d) => [...d, newDoc]);
       docsRef.current = [...docsRef.current, newDoc];
       setShowInline(false);
       setNewTitle("");
+      setNewDocId("");
       setCurrentDoc(newDoc);
     } catch (err) {
-      alert("Failed to create document");
+      alert(err?.response?.data?.error || "Failed to create document");
     }
   };
 
@@ -133,7 +125,6 @@ export default function Dashboard({ user }) {
   return (
     <div className="dashboard">
       <aside className="doc-list">
-        {/* --- CURRENT USER EMAIL ADDED --- */}
         {user?.email && (
           <div className="current-user" style={{ marginBottom: 12 }}>
             Logged in as: <strong>{user.email}</strong>
@@ -151,18 +142,18 @@ export default function Dashboard({ user }) {
           </button>
 
           {showInline && (
-            <div style={{ marginTop: 8 }}>
+            <div
+              style={{
+                marginTop: 8,
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
               <input
                 autoFocus
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") createDoc(newTitle.trim());
-                  if (e.key === "Escape") {
-                    setShowInline(false);
-                    setNewTitle("");
-                  }
-                }}
                 placeholder="Enter file name"
                 style={{
                   width: "100%",
@@ -171,9 +162,20 @@ export default function Dashboard({ user }) {
                   border: "1px solid #ccc",
                 }}
               />
-              <div style={{ marginTop: 6, display: "flex", gap: 8 }}>
+              <input
+                value={newDocId}
+                onChange={(e) => setNewDocId(e.target.value)}
+                placeholder="Enter document ID (shareable)"
+                style={{
+                  width: "100%",
+                  padding: 8,
+                  borderRadius: 6,
+                  border: "1px solid #ccc",
+                }}
+              />
+              <div style={{ display: "flex", gap: 8 }}>
                 <button
-                  onClick={() => createDoc(newTitle.trim())}
+                  onClick={() => createDoc(newTitle.trim(), newDocId.trim())}
                   className="btn btn-create-small"
                 >
                   Create
@@ -182,6 +184,7 @@ export default function Dashboard({ user }) {
                   onClick={() => {
                     setShowInline(false);
                     setNewTitle("");
+                    setNewDocId("");
                   }}
                   className="btn btn-cancel-small"
                 >
@@ -196,12 +199,10 @@ export default function Dashboard({ user }) {
           {documents.map((doc) => (
             <div key={doc.id} className="doc-item">
               <span
-                onClick={() => {
-                  setCurrentDoc(doc);
-                }}
+                onClick={() => setCurrentDoc(doc)}
                 style={{ cursor: "pointer" }}
               >
-                {doc.title || "Untitled"}
+                {doc.title || "Untitled"} (ID: {doc.docId})
               </span>
               <button onClick={() => deleteDoc(doc.id)}>Delete</button>
             </div>

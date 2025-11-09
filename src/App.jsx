@@ -108,7 +108,7 @@ export default function App() {
 
   return (
     <div className="app-root">
-      <Navbar onLogout={handleLogout} />
+      <Navbar onLogout={handleLogout} user={user} />
       <div className="app-content">
         <Routes>
           <Route path="/*" element={<Dashboard />} />
