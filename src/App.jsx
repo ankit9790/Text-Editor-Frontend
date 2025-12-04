@@ -1,16 +1,22 @@
+// src/App.jsx
 import React, { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import axios from "./api/axios";
+
 import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import MessageFab from "./components/MessageFab";
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(true); 
+  const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
 
+  // ---------------------------
+  // AUTO LOGIN CHECK
+  // ---------------------------
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem("token");
@@ -18,6 +24,7 @@ export default function App() {
         setChecking(false);
         return;
       }
+
       try {
         const res = await axios.get("/auth/me");
         setUser(res.data);
@@ -28,12 +35,27 @@ export default function App() {
         setChecking(false);
       }
     };
+
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    const handleLogoutEvent = () => {
+      localStorage.removeItem("token");
+      setUser(null);
+      navigate("/login");
+    };
+
+    window.addEventListener("logoutRequested", handleLogoutEvent);
+    return () =>
+      window.removeEventListener("logoutRequested", handleLogoutEvent);
   }, []);
 
   if (checking) return <div className="center-loader">Loading...</div>;
 
-  // If not logged in: show auth UI (Login/Register). Navbar is not shown.
+  // ---------------------------
+  // NOT LOGGED IN
+  // ---------------------------
   if (!user) {
     return (
       <div className="auth-center">
@@ -57,6 +79,7 @@ export default function App() {
               />
             }
           />
+
           <Route
             path="/login"
             element={
@@ -76,6 +99,7 @@ export default function App() {
               />
             }
           />
+
           <Route
             path="*"
             element={
@@ -100,20 +124,35 @@ export default function App() {
     );
   }
 
+  // ---------------------------
+  // LOGGED IN
+  // ---------------------------
   const handleLogout = () => {
     localStorage.removeItem("token");
     setUser(null);
     navigate("/login");
   };
 
+  const handleShareClick = () => {
+    window.dispatchEvent(new CustomEvent("openShareForCurrentDoc"));
+  };
+
   return (
     <div className="app-root">
-      <Navbar onLogout={handleLogout} user={user} />
+      <Navbar
+        user={user}
+        onLogout={handleLogout}
+        onShareClick={handleShareClick}
+      />
+
       <div className="app-content">
         <Routes>
-          <Route path="/*" element={<Dashboard />} />
+          <Route path="/*" element={<Dashboard user={user} />} />
         </Routes>
       </div>
+
+      {/* FIXED: pass user here */}
+      <MessageFab user={user} />
     </div>
   );
 }

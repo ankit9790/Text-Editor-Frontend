@@ -1,3 +1,4 @@
+// src/pages/Login.jsx
 import React, { useState } from "react";
 import axios from "../api/axios";
 import { useNavigate } from "react-router-dom";
@@ -9,11 +10,18 @@ export default function Login({ onLoggedIn }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const res = await axios.post("/auth/login", { email, password });
+      // 🔥 Matches backend exactly
+      const res = await axios.post("/auth/login", {
+        email,
+        password,
+      });
+
       if (res.data?.token) {
         localStorage.setItem("token", res.data.token);
       }
+
       if (onLoggedIn) onLoggedIn();
     } catch (err) {
       alert(err.response?.data?.error || "Login failed");
@@ -31,6 +39,7 @@ export default function Login({ onLoggedIn }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
+
         <label>Password</label>
         <input
           required
@@ -38,6 +47,7 @@ export default function Login({ onLoggedIn }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+
         <button type="submit" className="btn primary">
           Login
         </button>

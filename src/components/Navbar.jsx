@@ -1,46 +1,54 @@
-import React, { useState } from "react";
+// import React from "react";
+// import ProfileMenu from "./ProfileMenu";
 
-export default function Navbar({ onLogout, user }) {
-  const [joinId, setJoinId] = useState("");
+// export default function Navbar({ user, onShareClick }) {
+//   return (
+//     <nav className="navbar">
+//       <h3 className="navbar-title">Collaborative Editor</h3>
 
-  const handleJoin = () => {
-    const id = (joinId || "").trim();
-    if (!id) return;
-    window.dispatchEvent(new CustomEvent("joinDocById", { detail: id }));
-    setJoinId("");
-  };
+//       <div className="navbar-right">
+//         {/* SHARE BUTTON */}
+//         <button className="share-navbar-btn" onClick={onShareClick}>
+//           Share
+//         </button>
 
+//         {/* NOTIFICATION ICON */}
+//         <div className="notif-icon">🔔</div>
+
+//         {/* PROFILE MENU */}
+//         <ProfileMenu
+//           user={user}
+//           onLogout={() => {
+//             window.dispatchEvent(new CustomEvent("logoutRequested"));
+//           }}
+//         />
+//       </div>
+//     </nav>
+//   );
+// }
+
+
+import React from "react";
+import ProfileMenu from "./ProfileMenu";
+
+export default function Navbar({ user, onShareClick }) {
   return (
     <nav className="navbar">
-      {/* LEFT SIDE: Show current user email */}
-      <div className="navbar-left">
-        {user?.email && (
-          <span style={{ fontWeight: 600 }}>LogedIn : {user.email}</span>
-        )}
-      </div>
+      <h3 className="navbar-title">Collaborative Editor</h3>
 
-      {/* CENTER: Navbar title */}
-      <div className="navbar-center">
-        <div className="navbar-title">Collaborative Editor</div>
-      </div>
-
-      {/* RIGHT SIDE: Join input + Logout */}
       <div className="navbar-right">
-        <input
-          className="join-input"
-          placeholder="Document ID"
-          value={joinId}
-          onChange={(e) => setJoinId(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleJoin();
+        {/* SHARE BUTTON */}
+        <button className="share-navbar-btn" onClick={onShareClick}>
+          Share
+        </button>
+
+        {/* PROFILE MENU */}
+        <ProfileMenu
+          user={user}
+          onLogout={() => {
+            window.dispatchEvent(new CustomEvent("logoutRequested"));
           }}
         />
-        <button className="btn join-btn" onClick={handleJoin}>
-          Join
-        </button>
-        <button className="btn logout-btn" onClick={onLogout}>
-          Logout
-        </button>
       </div>
     </nav>
   );
