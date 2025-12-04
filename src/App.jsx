@@ -14,6 +14,24 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
 
+  // Auto-Wake Server
+
+  useEffect(() => {
+    const pingServer = () => {
+      fetch("https://texteditorbackend-uxt9.onrender.com/health")
+        .then(() => console.log("🔄 Backend pinged"))
+        .catch(() => console.log("Backend sleep…"));
+    };
+
+    // Run immediately on load
+    pingServer();
+
+    // Then run every 5 minutes
+    const interval = setInterval(pingServer, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // ---------------------------
   // AUTO LOGIN CHECK
   // ---------------------------
