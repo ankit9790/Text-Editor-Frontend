@@ -180,6 +180,24 @@
   font-size: 20px;
 }
 
+.auth-fullscreen-center {
+  width: 100%;
+  height: calc(100vh - 60px); /* adjust navbar height */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fafafa;
+}
+.auth-fullscreen-center {
+  width: 100%;
+  height: calc(100vh - 60px); /* Adjust if navbar height changes */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #ffffff;
+}
+
+
 .menu-popup {
   position: absolute;
   right: 0;

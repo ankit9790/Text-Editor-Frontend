@@ -3,20 +3,21 @@ import axios from "../api/axios";
 import Editor from "../components/Editor";
 import ShareModal from "../components/ShareModal";
 
-export default function Dashboard() {
+export default function Dashboard({ user }) {
   const [myDocs, setMyDocs] = useState([]);
   const [currentDoc, setCurrentDoc] = useState(null);
 
   const [showMenuFor, setShowMenuFor] = useState(null);
-  const [showShareModal, setShowShareModal] = useState(null); // { doc } | null
+  const [showShareModal, setShowShareModal] = useState(null);
 
   const [renameDoc, setRenameDoc] = useState(null);
   const [renameValue, setRenameValue] = useState("");
 
-  // Load my documents on mount
+  // Load documents only if logged in
   useEffect(() => {
-    loadDocs();
-  }, []);
+    if (user) loadDocs();
+    else setMyDocs([]); // logged-out user → no API docs
+  }, [user]);
 
   const loadDocs = async () => {
     try {
@@ -30,49 +31,39 @@ export default function Dashboard() {
   // Navbar "Share" button listener
   useEffect(() => {
     const handleOpenShare = () => {
-      if (!currentDoc) {
-        alert("Open a document first, then click Share.");
-        return;
-      }
+      if (!user) return alert("Login required to share documents.");
+      if (!currentDoc) return alert("Open a document first.");
+
       setShowShareModal({ doc: currentDoc });
     };
 
     window.addEventListener("openShareForCurrentDoc", handleOpenShare);
     return () =>
       window.removeEventListener("openShareForCurrentDoc", handleOpenShare);
-  }, [currentDoc]);
+  }, [currentDoc, user]);
 
-  // ---------------------------------------------------------
-  // 🔥 FIXED — OPEN SHARED DOCUMENT FROM NOTIFICATION
-  // ---------------------------------------------------------
+  // 🔥 OPEN DOC FROM NOTIFICATION
   useEffect(() => {
     const handleOpenFromNotif = async (e) => {
+      if (!user) return alert("Login required.");
       const docId = e.detail;
       if (!docId) return;
 
       try {
-        // Load OWNED docs
         const ownedRes = await axios.get("/documents");
         const owned = ownedRes.data || [];
 
-        // Load SHARED docs
         const sharedRes = await axios.get("/share/shared-with-me");
         const shared = sharedRes.data || [];
 
-        // merge results
         const allDocs = [...owned, ...shared];
         setMyDocs(allDocs);
 
-        // find target doc
         const found = allDocs.find((d) => d.id === docId);
-
-        if (found) {
-          setCurrentDoc(found);
-        } else {
-          alert("Document not found or removed.");
-        }
+        if (found) setCurrentDoc(found);
+        else alert("Document not found.");
       } catch (err) {
-        console.error("Open-from-notification error:", err);
+        console.error("Notification open error:", err);
       }
     };
 
@@ -83,10 +74,12 @@ export default function Dashboard() {
         "openSharedFromNotification",
         handleOpenFromNotif
       );
-  }, []);
+  }, [user]);
 
-  // ➤ Create new untitled document (Document tabs + button)
+  // ➤ Create new doc
   const createUntitledDoc = async () => {
+    if (!user) return alert("Login required to create documents.");
+
     try {
       const res = await axios.post("/documents", {
         title: "Untitled document",
@@ -94,7 +87,6 @@ export default function Dashboard() {
       });
 
       const newDoc = res.data;
-
       setMyDocs((prev) => [newDoc, ...prev]);
       setCurrentDoc(newDoc);
     } catch (err) {
@@ -104,6 +96,7 @@ export default function Dashboard() {
 
   // ➤ Delete document
   const deleteDoc = async (id) => {
+    if (!user) return alert("Login required.");
     if (!window.confirm("Delete this file?")) return;
 
     try {
@@ -117,6 +110,8 @@ export default function Dashboard() {
 
   // ➤ Save rename
   const saveRename = async () => {
+    if (!user) return alert("Login required.");
+
     try {
       const res = await axios.put(`/documents/${renameDoc.id}`, {
         title: renameValue,
@@ -135,9 +130,10 @@ export default function Dashboard() {
 
   // 🔹 Save manually to server
   const saveDocument = async (docId) => {
+    if (!user) return alert("Login required.");
+
     try {
       const content = localStorage.getItem(`doc_${docId}`) || "";
-
       await axios.put(`/documents/${docId}`, { content });
       alert("Document saved!");
     } catch (err) {
@@ -146,7 +142,7 @@ export default function Dashboard() {
     }
   };
 
-  // 🔹 Save As → Download file
+  // 🔹 Save As → Download HTML file
   const saveAsDocument = (docId, title) => {
     const content = localStorage.getItem(`doc_${docId}`) || "";
     const filename = `${title || "document"}.html`;
@@ -165,9 +161,9 @@ export default function Dashboard() {
     <div className="dashboard">
       {/* SIDEBAR */}
       <aside className="doc-list">
-        {/* HEADER: Document tabs + + button */}
         <div className="doc-tabs-header">
           <span>Document tabs</span>
+
           <button
             className="doc-tabs-add-btn"
             onClick={createUntitledDoc}
@@ -177,13 +173,15 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* DOCUMENT LIST */}
+        {!user && (
+          <div style={{ padding: 10, color: "#777" }}>
+            Login to view your documents.
+          </div>
+        )}
+
         {myDocs.map((doc) => (
           <div key={doc.id} className="doc-item">
-            <span
-              onClick={() => setCurrentDoc(doc)}
-              style={{ cursor: "pointer" }}
-            >
+            <span onClick={() => setCurrentDoc(doc)} style={{ cursor: "pointer" }}>
               {doc.title || "Untitled document"}
             </span>
 
@@ -202,6 +200,7 @@ export default function Dashboard() {
                   <div
                     className="menu-item"
                     onClick={() => {
+                      if (!user) return alert("Login required.");
                       setRenameDoc(doc);
                       setRenameValue(doc.title || "Untitled document");
                       setShowMenuFor(null);
@@ -210,10 +209,10 @@ export default function Dashboard() {
                     Rename
                   </div>
 
-                  {/* NEW: SAVE */}
                   <div
                     className="menu-item"
                     onClick={() => {
+                      if (!user) return alert("Login required.");
                       saveDocument(doc.id);
                       setShowMenuFor(null);
                     }}
@@ -221,7 +220,6 @@ export default function Dashboard() {
                     Save
                   </div>
 
-                  {/* NEW: SAVE AS */}
                   <div
                     className="menu-item"
                     onClick={() => {
@@ -235,6 +233,7 @@ export default function Dashboard() {
                   <div
                     className="menu-item"
                     onClick={() => {
+                      if (!user) return alert("Login required.");
                       setShowShareModal({ doc });
                       setShowMenuFor(null);
                     }}
@@ -244,10 +243,7 @@ export default function Dashboard() {
 
                   <div
                     className="menu-item delete"
-                    onClick={() => {
-                      deleteDoc(doc.id);
-                      setShowMenuFor(null);
-                    }}
+                    onClick={() => deleteDoc(doc.id)}
                   >
                     Delete
                   </div>
@@ -258,14 +254,16 @@ export default function Dashboard() {
         ))}
       </aside>
 
-      {/* MAIN EDITOR AREA */}
+      {/* MAIN EDITOR */}
       <main className="editor-area">
         <div className="editor-container">
           {currentDoc ? (
             <Editor doc={currentDoc} />
           ) : (
             <div className="editor-placeholder">
-              Click + to create a document, or select one from the left
+              {user
+                ? "Click + to create a document or select one from the left."
+                : "Login to create or open documents."}
             </div>
           )}
         </div>
@@ -296,10 +294,7 @@ export default function Dashboard() {
               }}
             />
             <div className="rename-actions">
-              <button
-                className="btn btn-cancel-small"
-                onClick={() => setRenameDoc(null)}
-              >
+              <button className="btn btn-cancel-small" onClick={() => setRenameDoc(null)}>
                 Cancel
               </button>
               <button className="btn btn-create-small" onClick={saveRename}>

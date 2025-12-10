@@ -14,27 +14,13 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
 
-  // Auto-Wake Server
+  // // Auto-Wake Server
+  // useEffect(() => {
+  //   fetch("https://texteditorbackend-uxt9.onrender.com/health")
+  //     .catch(() => {});
+  // }, []);
 
-  useEffect(() => {
-    const pingServer = () => {
-      fetch("https://texteditorbackend-uxt9.onrender.com/health")
-        .then(() => console.log("🔄 Backend pinged"))
-        .catch(() => console.log("Backend sleep…"));
-    };
-
-    // Run immediately on load
-    pingServer();
-
-    // Then run every 5 minutes
-    const interval = setInterval(pingServer, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // ---------------------------
   // AUTO LOGIN CHECK
-  // ---------------------------
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem("token");
@@ -71,87 +57,8 @@ export default function App() {
 
   if (checking) return <div className="center-loader">Loading...</div>;
 
-  // ---------------------------
-  // NOT LOGGED IN
-  // ---------------------------
-  if (!user) {
-    return (
-      <div className="auth-center">
-        <Routes>
-          <Route
-            path="/register"
-            element={
-              <Register
-                onRegistered={async () => {
-                  const token = localStorage.getItem("token");
-                  if (token) {
-                    try {
-                      const r = await axios.get("/auth/me");
-                      setUser(r.data);
-                      navigate("/");
-                    } catch {
-                      navigate("/login");
-                    }
-                  }
-                }}
-              />
-            }
-          />
-
-          <Route
-            path="/login"
-            element={
-              <Login
-                onLoggedIn={async () => {
-                  const token = localStorage.getItem("token");
-                  if (token) {
-                    try {
-                      const r = await axios.get("/auth/me");
-                      setUser(r.data);
-                      navigate("/");
-                    } catch {
-                      navigate("/login");
-                    }
-                  }
-                }}
-              />
-            }
-          />
-
-          <Route
-            path="*"
-            element={
-              <Login
-                onLoggedIn={async () => {
-                  const token = localStorage.getItem("token");
-                  if (token) {
-                    try {
-                      const r = await axios.get("/auth/me");
-                      setUser(r.data);
-                      navigate("/");
-                    } catch {
-                      navigate("/login");
-                    }
-                  }
-                }}
-              />
-            }
-          />
-        </Routes>
-      </div>
-    );
-  }
-
-  // ---------------------------
-  // LOGGED IN
-  // ---------------------------
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    navigate("/login");
-  };
-
   const handleShareClick = () => {
+    if (!user) return alert("Login required for sharing!");
     window.dispatchEvent(new CustomEvent("openShareForCurrentDoc"));
   };
 
@@ -159,17 +66,63 @@ export default function App() {
     <div className="app-root">
       <Navbar
         user={user}
-        onLogout={handleLogout}
         onShareClick={handleShareClick}
+        onLogin={() => navigate("/login")}
       />
 
       <div className="app-content">
         <Routes>
-          <Route path="/*" element={<Dashboard user={user} />} />
+          {/* MAIN DASHBOARD ALWAYS SHOWN */}
+          <Route path="/" element={<Dashboard user={user} />} />
+
+          {/* LOGIN (centered) */}
+          <Route
+            path="/login"
+            element={
+              <div className="auth-fullscreen-center">
+                <Login
+                  onLoggedIn={async () => {
+                    const token = localStorage.getItem("token");
+                    if (token) {
+                      try {
+                        const r = await axios.get("/auth/me");
+                        setUser(r.data);
+                        navigate("/");
+                      } catch {
+                        navigate("/login");
+                      }
+                    }
+                  }}
+                />
+              </div>
+            }
+          />
+
+          {/* REGISTER (centered) */}
+          <Route
+            path="/register"
+            element={
+              <div className="auth-fullscreen-center">
+                <Register
+                  onRegistered={async () => {
+                    const token = localStorage.getItem("token");
+                    if (token) {
+                      try {
+                        const r = await axios.get("/auth/me");
+                        setUser(r.data);
+                        navigate("/");
+                      } catch {
+                        navigate("/login");
+                      }
+                    }
+                  }}
+                />
+              </div>
+            }
+          />
         </Routes>
       </div>
 
-      {/* FIXED: pass user here */}
       <MessageFab user={user} />
     </div>
   );
